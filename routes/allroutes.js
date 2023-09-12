@@ -6,6 +6,7 @@ const masterdutyModule = require("../controllers/masterdutyModule");
 const staffModule = require("../controllers/staffModule");
 const shiftModule = require("../controllers/shiftModule");
 const shiftAllocationModule = require("../controllers/shiftAllocationModule.js");
+const staffReportsModule=require("../controllers/staffReportsModule.js");
 
 //Register Vendor
 router.post("/registervendor", vendorModule.newvendorregister);
@@ -119,4 +120,7 @@ router.get(
   shiftAllocationModule.StaffNurseOTAllocationGetByUser
 );
 
+router.post("/api/staff_base_report/reports",staffReportsModule.StaffReportsModule);
+
+router.post("/api/dutywisereport/reports",staffReportsModule.DutyWiseReport);
 module.exports = router; // export to use in server.js

@@ -14,9 +14,9 @@ app.use(function (req, res, next) {
 const floorAllocation = (req, res) => {
   const body = req.body;
   console.log(body);
-
+   const tower=req.body.tower;
   const query =
-    "SELECT master_rooms.branch_id,room_number,master_beds.id as bed_id,master_rooms.floor,master_sections.id as section_id FROM master_floor_section join master_rooms on master_floor_section.id=master_rooms.floor join master_beds on master_beds.room_id=master_rooms.id join master_sections on master_floor_section.section=master_sections.abbr where master_floor_section.branch_id=" +
+    "SELECT master_rooms.branch_id,room_number,master_beds.id as bed_id,master_rooms.floor,master_sections.id as section_id,master_floor_section.tower as tower FROM master_floor_section join master_rooms on master_floor_section.id=master_rooms.floor join master_beds on master_beds.room_id=master_rooms.id join master_sections on master_floor_section.section=master_sections.abbr where master_floor_section.branch_id=" +
     req.body.branch_id +
     " and master_floor_section.floor='" +
     req.body.floor +
@@ -25,6 +25,7 @@ const floorAllocation = (req, res) => {
     " and master_sections.abbr='" +
     req.body.section +
     "' and master_floor_section.status='Active';";
+  console.log("ttt"+query);  
   db.query(query, (err, result) => {
     if (err) {
       console.error("Error fetching staff:", err);
@@ -47,6 +48,23 @@ const floorAllocation = (req, res) => {
         today = yyyy + "-" + mm + "-" + dd;
         const user_id = 123;
         const floor = req.body.floor;
+        const floor_abbr=req.body.floor;
+        // const tower=req.body.tower;
+        const floor_map = new Map();
+        floor_map.set('G',0);
+        floor_map.set('F1',1);
+        floor_map.set('F2',2);
+        floor_map.set('F3',3);
+        floor_map.set('F4',4);
+        floor_map.set('F5',5);
+        floor_map.set('F6',6);
+        floor_map.set('F7',7);
+        floor_map.set('F8',8);
+        floor_map.set('F9',9);
+        floor_map.set('F10',10);
+        floor_map.set('F11',11);
+        const master_floor=floor_map.get(floor_abbr);
+        
         const branch_id = req.body.branch_id;
         const section_id =
           "select id from master_sections where abbr='" +
@@ -76,6 +94,8 @@ const floorAllocation = (req, res) => {
               var tmp = {};
               tmp["branch_id"] = result[j].branch_id;
               tmp["user_id"] = user_id;
+              tmp["tower"]=tower;
+              tmp["master_floor"]=master_floor;
               tmp["room_number"] = result[j].room_number;
               tmp["bed_id"] = result[j].bed_id;
               tmp["duty_type_id"] = parseFloat(duty_id);
@@ -97,6 +117,7 @@ const floorAllocation = (req, res) => {
               today,
               branch_id,
               floor,
+              tower,
               shift,
               res // Pass the 'res' object as a parameter to the insertBulkData function
             )
@@ -125,6 +146,7 @@ async function insertBulkData(
   todays,
   branch_id,
   floor,
+  tower,
   shift
 ) {
   try {
@@ -139,7 +161,9 @@ async function insertBulkData(
       branch_id +
       " and section='" +
       section_id +
-      "') and shift=" +
+      "' and master_floor_section.tower="+
+      tower+
+      ") and shift=" +
       shift +
       "";
     console.log(recordexists);
@@ -160,7 +184,7 @@ async function insertBulkData(
       // Your bulk insert code goes here
 
       const query =
-        "INSERT INTO staff_allocation (branch_id, user_id, room_no, bed_id, duty_type_id, floor, section_id, staff_id, staff_source, shift, staff_payable,schedule_date) VALUES ?";
+        "INSERT INTO staff_allocation (branch_id, user_id, room_no, bed_id, duty_type_id,tower, master_floor,floor, section_id, staff_id, staff_source, shift, staff_payable,schedule_date) VALUES ?";
 
       const values = data_to_insert.map((item) => [
         item.branch_id,
@@ -168,6 +192,8 @@ async function insertBulkData(
         item.room_number,
         item.bed_id,
         item.duty_type_id,
+        item.tower,
+        item.master_floor,
         item.floor,
         item.section_id,
         item.staff_id,
@@ -354,12 +380,28 @@ const StaffNurseAllocation = (req, res) => {
       user_id = 123;
       branch_id = req.body.branch_id;
       duty_type_id = req.body.duty;
-      floor = req.body.floor;
+      tower=req.body.tower;
+      floor_abbr = req.body.floor;
+      const floor_map = new Map();
+      floor_map.set('G',0);
+      floor_map.set('F1',1);
+      floor_map.set('F2',2);
+      floor_map.set('F3',3);
+      floor_map.set('F4',4);
+      floor_map.set('F5',5);
+      floor_map.set('F6',6);
+      floor_map.set('F7',7);
+      floor_map.set('F8',8);
+      floor_map.set('F9',9);
+      floor_map.set('F10',10);
+      floor_map.set('F11',11);
+      floor=floor_map.get(floor_abbr);
+
       staff_id = result[0].id;
       staff_source = result[0].source;
       staff_nurse_shift = req.body.shift;
       staff_payable = req.body.staff_payable;
-      service_payable = req.body.service_payable;
+      service_payable = (req.body.service_payable!="")?req.body.service_payable:0;
 
       console.log(staff_id);
       var today = new Date();
@@ -374,6 +416,8 @@ const StaffNurseAllocation = (req, res) => {
         today +
         "' and branch_id=" +
         req.body.branch_id +
+        " and tower="+
+        req.body.tower+
         " and floor='" +
         req.body.floor +
         "' and duty_type_id=" +
@@ -397,15 +441,17 @@ const StaffNurseAllocation = (req, res) => {
               );
           } else {
             const query =
-              "INSERT INTO `staff_nurse_allocation`(`branch_id`, `user_id`, `duty_type_id`, `floor`, `staff_id`, `staff_source`, `staff_nurse_shift`, `staff_payable`, `service_payable`, `schedule_date`, `status`) VALUES (" +
+              "INSERT INTO `staff_nurse_allocation`(`branch_id`, `tower`,`user_id`, `duty_type_id`, `floor`, `staff_id`, `staff_source`, `staff_nurse_shift`, `staff_payable`, `service_payable`, `schedule_date`, `status`) VALUES (" +
               branch_id +
               "," +
+              tower+
+              ","+
               user_id +
               "," +
               duty_type_id +
-              ",'" +
+              "," +
               floor +
-              "'," +
+              "," +
               staff_id +
               ",'" +
               staff_source +
@@ -492,7 +538,7 @@ const StaffNurseOTAllocation = (req, res) => {
               service_payable = req.body.service_payable;
 
               var insert_query =
-                "insert into staff_nurse_allocation (branch_id, user_id, duty_type_id, floor, staff_payable,  schedule_date, ot_type, ot_hrs_shift,status,staff_nurse_shift,staff_id,staff_source) values(?,?,?,?,?,?,?,?,?,?,?,?); update staff_nurse_allocation set status=0,ot_type=null where id=" +
+                "insert into staff_nurse_allocation (branch_id,tower, user_id, duty_type_id, floor, staff_payable,  schedule_date, ot_type, ot_hrs_shift,status,staff_nurse_shift,staff_id,staff_source) values(?,?,?,?,?,?,?,?,?,?,?,?,?); update staff_nurse_allocation set status=0,ot_type=null where id=" +
                 staff_nurse_allocation_id +
                 ";";
               //var insert_query="insert into staff_nurse_allocation (branch_id, user_id) values(?,?)";
@@ -529,6 +575,7 @@ const StaffNurseOTAllocation = (req, res) => {
                 insert_query,
                 [
                   duplicate.branch_id,
+                  duplicate.tower,
                   user_id,
                   duplicate.duty_type_id,
                   duplicate.floor,
