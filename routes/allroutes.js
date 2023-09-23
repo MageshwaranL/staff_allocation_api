@@ -123,4 +123,6 @@ router.get(
 router.post("/api/staff_base_report/reports",staffReportsModule.StaffReportsModule);
 
 router.post("/api/dutywisereport/reports",staffReportsModule.DutyWiseReport);
+router.post("/api/staffnursereport/reports",staffReportsModule.StaffNurseReport);
+router.post("/api/allstaffnursereport/reports",staffReportsModule.AllStaffNurseReport);
 module.exports = router; // export to use in server.js
